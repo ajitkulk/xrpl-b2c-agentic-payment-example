@@ -1,0 +1,19 @@
+{
+  "name": "xrpl-b2c-agentic-payment-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Buyer agent + weather seller, paid over x402 on XRPL testnet via the T54 facilitator",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "xrpl": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

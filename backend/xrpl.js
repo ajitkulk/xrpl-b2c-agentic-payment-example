@@ -1,5 +1,8 @@
 import { Client, Wallet, convertStringToHex, dropsToXrp } from "xrpl";
-import { XRPL_WS, RLUSD_ISSUER, RLUSD_CURRENCY } from "./config.js";
+import { XRPL_WS, RLUSD_CURRENCY } from "./config.js";
+
+// AccountSet flag asfDefaultRipple (8): IOU issuers need it so their tokens ripple.
+const ASF_DEFAULT_RIPPLE = 8;
 
 let _client;
 
@@ -61,8 +64,8 @@ export async function getXrpBalance(address) {
   }
 }
 
-/** Balance of a given IOU (defaults to RLUSD) held by `address`. */
-export async function getIouBalance(address, currency = RLUSD_HEX, issuer = RLUSD_ISSUER) {
+/** Balance of a given IOU (issuer required; currency defaults to RLUSD) held by `address`. */
+export async function getIouBalance(address, issuer, currency = RLUSD_HEX) {
   const client = await getClient();
   try {
     const res = await client.request({
@@ -80,29 +83,62 @@ export async function getIouBalance(address, currency = RLUSD_HEX, issuer = RLUS
   }
 }
 
-/** Ensure `wallet` trusts the RLUSD issuer so it can hold/spend RLUSD. Idempotent. */
-export async function ensureRlusdTrustLine(wallet, limit = "1000000") {
+/** Enable DefaultRipple on an IOU issuer so its tokens can ripple between holders. Idempotent. */
+export async function enableDefaultRipple(wallet) {
+  const info = await getAccountInfo(wallet.address);
+  const LSF_DEFAULT_RIPPLE = 0x00800000;
+  if (info && (info.Flags & LSF_DEFAULT_RIPPLE) !== 0) return { alreadySet: true };
+
+  const client = await getClient();
+  const prepared = await client.autofill({
+    TransactionType: "AccountSet",
+    Account: wallet.address,
+    SetFlag: ASF_DEFAULT_RIPPLE,
+  });
+  const signed = wallet.sign(prepared);
+  const result = await client.submitAndWait(signed.tx_blob);
+  const code = result.result.meta?.TransactionResult;
+  if (code !== "tesSUCCESS") throw new Error(`AccountSet DefaultRipple failed: ${code}`);
+  return { alreadySet: false };
+}
+
+/** Ensure `wallet` trusts (currency, issuer) so it can hold/spend that IOU. Idempotent. */
+export async function ensureTrustLine(wallet, currency, issuer, limit = "1000000") {
   const client = await getClient();
   const res = await client.request({
     command: "account_lines",
     account: wallet.address,
     ledger_index: "validated",
   });
-  const has = res.result.lines.some(
-    (l) => l.currency === RLUSD_HEX && l.account === RLUSD_ISSUER,
-  );
+  const has = res.result.lines.some((l) => l.currency === currency && l.account === issuer);
   if (has) return { alreadySet: true };
 
   const prepared = await client.autofill({
     TransactionType: "TrustSet",
     Account: wallet.address,
-    LimitAmount: { currency: RLUSD_HEX, issuer: RLUSD_ISSUER, value: limit },
+    LimitAmount: { currency, issuer, value: limit },
   });
   const signed = wallet.sign(prepared);
   const result = await client.submitAndWait(signed.tx_blob);
   const code = result.result.meta?.TransactionResult;
   if (code !== "tesSUCCESS") throw new Error(`TrustSet failed: ${code}`);
   return { alreadySet: false, result: result.result };
+}
+
+/** Mint an IOU by sending an issuer Payment to a holder. */
+export async function mintIou(issuerWallet, toAddress, currency, value) {
+  const client = await getClient();
+  const prepared = await client.autofill({
+    TransactionType: "Payment",
+    Account: issuerWallet.address,
+    Destination: toAddress,
+    Amount: { currency, issuer: issuerWallet.address, value: String(value) },
+  });
+  const signed = issuerWallet.sign(prepared);
+  const result = await client.submitAndWait(signed.tx_blob);
+  const code = result.result.meta?.TransactionResult;
+  if (code !== "tesSUCCESS") throw new Error(`Mint ${currency} failed: ${code}`);
+  return result.result;
 }
 
 /** Submit an already-signed transaction blob and wait for validation. */
@@ -119,4 +155,20 @@ export async function getTransaction(hash) {
   const client = await getClient();
   const res = await client.request({ command: "tx", transaction: hash });
   return res.result;
+}
+
+/** account_data for an address, or null if the account isn't funded. */
+export async function getAccountInfo(address) {
+  const client = await getClient();
+  try {
+    const res = await client.request({
+      command: "account_info",
+      account: address,
+      ledger_index: "validated",
+    });
+    return res.result.account_data;
+  } catch (err) {
+    if (err?.data?.error === "actNotFound") return null;
+    throw err;
+  }
 }

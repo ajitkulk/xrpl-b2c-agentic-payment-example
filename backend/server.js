@@ -6,7 +6,8 @@ import { initWallet, getWallet } from "./wallet-skill.js";
 import { initSeller, sellerAddress, weatherHandler, getSellerState } from "./seller.js";
 import { runWeatherRequest } from "./buyer-agent.js";
 import { getSupported } from "./facilitator.js";
-import { getXrpBalance, getIouBalance, disconnect } from "./xrpl.js";
+import { getXrpBalance, disconnect } from "./xrpl.js";
+import { initRlusdIssuer, rlusdIssuerAddress, rlusdBalance, ensureRlusdFunded } from "./rlusd.js";
 
 const app = express();
 app.use(cors());
@@ -33,7 +34,7 @@ app.get("/api/buyer/state", async (_req, res) => {
     const wallet = getWallet();
     const [xrp, rlusd] = await Promise.all([
       getXrpBalance(wallet.address),
-      getIouBalance(wallet.address).catch(() => 0),
+      rlusdBalance(wallet.address).catch(() => 0),
     ]);
     res.json({
       address: wallet.address,
@@ -65,6 +66,7 @@ app.get("/api/info", async (_req, res) => {
     maxSpendXrp: MAX_SPEND_XRP,
     seller: sellerAddress(),
     buyer: getWallet().address,
+    rlusd: { selfIssued: true, issuer: rlusdIssuerAddress() },
   });
 });
 
@@ -77,9 +79,18 @@ app.post("/api/reset", (_req, res) => {
 async function start() {
   loadState();
   console.log("Connecting to XRPL testnet and provisioning wallets…");
-  const [buyer, seller] = await Promise.all([initWallet(), initSeller()]);
+  // Issuer first: the seller's trust line and the buyer's minting both need it.
+  const issuer = await initRlusdIssuer();
+  const buyer = await initWallet();
+  const seller = await initSeller();
+  // Self-issue test RLUSD to the agent so the RLUSD path works out of the box.
+  const { minted } = await ensureRlusdFunded(buyer, Number(PRICE)).catch((e) => {
+    console.warn(`RLUSD provisioning skipped: ${e.message}`);
+    return { minted: 0 };
+  });
   console.log(`Buyer agent wallet:  ${buyer.address}`);
   console.log(`Seller wallet:       ${seller.address}`);
+  console.log(`RLUSD issuer (demo): ${issuer.address}${minted ? ` (minted ${minted} RLUSD to buyer)` : ""}`);
   app.listen(HTTP_PORT, () => {
     console.log(`Backend listening on http://localhost:${HTTP_PORT}`);
     console.log(`x402 facilitator:    ${FACILITATOR_URL}`);

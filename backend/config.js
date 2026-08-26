@@ -9,9 +9,18 @@ export const X402_NETWORK = "xrpl:1";
 export const FACILITATOR_URL =
   process.env.XRPL_FACILITATOR_URL || "https://xrpl-facilitator-testnet.t54.ai";
 
-// RLUSD on XRPL testnet.
-export const RLUSD_ISSUER = "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV";
-export const RLUSD_CURRENCY = "RLUSD"; // encoded to 40-char hex where the ledger needs it
+// RLUSD currency code (encoded to 40-char hex where the ledger needs it).
+export const RLUSD_CURRENCY = "RLUSD";
+
+// Ripple's OFFICIAL RLUSD testnet issuer — kept for reference only. Its faucets are
+// gated (GitHub OAuth / CAPTCHA), so this demo self-issues a test token with the same
+// "RLUSD" code from its own issuer wallet instead (see rlusd.js). Set SELF_ISSUE_RLUSD
+// to false and swap the issuer if you fund the agent from the official faucet.
+export const OFFICIAL_RLUSD_ISSUER = "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV";
+export const SELF_ISSUE_RLUSD = true;
+
+// How much test RLUSD the demo issuer mints to the buyer agent on first boot.
+export const RLUSD_MINT_AMOUNT = "1000";
 
 // The seller charges this per weather lookup.
 export const PRICE = "0.1";

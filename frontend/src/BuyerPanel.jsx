@@ -104,12 +104,11 @@ export default function BuyerPanel({ buyer, onDone }) {
         </div>
       </div>
 
-      {asset === "RLUSD" && buyer && buyer.balances.rlusd <= 0 && (
+      {asset === "RLUSD" && buyer && (
         <div className="hint">
-          ⚠️ The agent holds no testnet RLUSD (the faucet only funds XRP). Fund{" "}
-          <span className="mono">{buyer.address}</span> with test RLUSD via{" "}
-          <a href="https://tryrlusd.com" target="_blank" rel="noreferrer">tryrlusd.com</a> or{" "}
-          <a href="https://test.bithomp.com/faucet" target="_blank" rel="noreferrer">bithomp</a>, then retry — or just pay in XRP.
+          ℹ️ RLUSD here is a <b>self-issued test token</b> (same <span className="mono">RLUSD</span>{" "}
+          code, minted by the demo's own issuer — not Ripple's official RLUSD). The agent
+          holds <span className="mono">{buyer.balances.rlusd}</span> and is topped up automatically.
         </div>
       )}
 
@@ -156,14 +155,6 @@ export default function BuyerPanel({ buyer, onDone }) {
         <div className="answer error">
           <div className="answer-label">Failed</div>
           <div className="answer-text">{result.error}</div>
-          {result.needsFunding && (
-            <div className="answer-links">
-              Fund the agent:{" "}
-              <a href="https://tryrlusd.com" target="_blank" rel="noreferrer">tryrlusd.com</a>
-              {" · "}
-              <a href="https://test.bithomp.com/faucet" target="_blank" rel="noreferrer">bithomp faucet</a>
-            </div>
-          )}
         </div>
       )}
     </section>

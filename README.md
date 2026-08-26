@@ -50,11 +50,18 @@ On first boot the backend provisions and funds a buyer agent wallet and a seller
 from the testnet faucet, persisting their seeds to `backend/data/state.json`
 (`POST /api/reset` clears the seller's request log).
 
-### Paying in RLUSD
+### Paying in RLUSD (self-issued test token)
 
-XRP works out of the box. To pay in RLUSD, the agent wallet needs an RLUSD trust line
-(set automatically on first RLUSD request) **and** an RLUSD balance — fund it from a testnet
-RLUSD faucet (e.g. Bithomp / tryrlusd.com) using the agent address shown in the UI.
+Both XRP and RLUSD work out of the box. Ripple's official RLUSD testnet faucets are gated
+(GitHub OAuth / CAPTCHA), so instead the demo runs its **own issuer wallet** and mints a
+test token using the same `RLUSD` currency code. On boot it provisions the issuer (with
+DefaultRipple), sets trust lines on the buyer + seller, and mints 1000 test RLUSD to the
+agent — so the RLUSD path settles end-to-end with no external faucet.
+
+This is **not** Ripple's official RLUSD — just a same-code stand-in the demo fully controls
+(the UI labels it as such). To use the official issuer instead, set `SELF_ISSUE_RLUSD = false`
+in `backend/config.js`, point `OFFICIAL_RLUSD_ISSUER` at it, and fund the agent from the
+official faucet.
 
 ## Stack
 

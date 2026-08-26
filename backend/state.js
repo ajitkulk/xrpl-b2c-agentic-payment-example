@@ -10,6 +10,7 @@ const STATE_FILE = join(DATA_DIR, "state.json");
 const DEFAULT = {
   buyerSeed: null,
   sellerSeed: null,
+  rlusdIssuerSeed: null, // demo self-issued RLUSD issuer
   sellerRequests: [], // audit log the seller UI renders
 };
 

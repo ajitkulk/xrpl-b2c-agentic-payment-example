@@ -5,12 +5,7 @@
 //   - with payment    -> verify+settle via the T54 facilitator, re-verify on-ledger,
 //                         then return the weather text + PAYMENT-RESPONSE header
 import { xrpToDrops } from "xrpl";
-import {
-  X402_NETWORK,
-  PRICE,
-  X402_SOURCE_TAG,
-  RLUSD_ISSUER,
-} from "./config.js";
+import { X402_NETWORK, PRICE, X402_SOURCE_TAG } from "./config.js";
 import {
   HEADER_REQUIRED,
   HEADER_SIGNATURE,
@@ -22,10 +17,11 @@ import {
   newInvoiceId,
   invoiceIdHash,
 } from "./x402.js";
-import { fundOrLoadWallet, getXrpBalance, getIouBalance, getTransaction, RLUSD_HEX } from "./xrpl.js";
+import { fundOrLoadWallet, getXrpBalance, getTransaction, RLUSD_HEX } from "./xrpl.js";
 import { settlePayment } from "./facilitator.js";
 import { getState, saveState } from "./state.js";
 import { getWeatherText } from "./weather.js";
+import { rlusdIssuerAddress, rlusdBalance, ensureRlusdTrustLine } from "./rlusd.js";
 
 let _seller; // XRPL wallet
 
@@ -33,6 +29,8 @@ export async function initSeller() {
   const { sellerSeed } = getState();
   _seller = await fundOrLoadWallet(sellerSeed);
   if (!sellerSeed) saveState({ sellerSeed: _seller.seed });
+  // The seller must trust the demo RLUSD issuer to receive RLUSD payments.
+  await ensureRlusdTrustLine(_seller).catch(() => {});
   return _seller;
 }
 
@@ -46,7 +44,7 @@ const XRP_PRICE_DROPS = xrpToDrops(PRICE); // "0.1" XRP -> "100000"
 /** The amount + asset fields the seller advertises for a chosen asset. */
 function requirementFields(asset) {
   if (asset === "RLUSD") {
-    return { asset: RLUSD_HEX, amount: PRICE, issuer: RLUSD_ISSUER, label: "RLUSD" };
+    return { asset: RLUSD_HEX, amount: PRICE, issuer: rlusdIssuerAddress(), label: "RLUSD" };
   }
   return { asset: "XRP", amount: XRP_PRICE_DROPS, issuer: undefined, label: "XRP" };
 }
@@ -99,7 +97,7 @@ async function verifyOnLedger(txHash, { invoiceId, asset }) {
   } else {
     okAmount =
       amt?.currency === RLUSD_HEX &&
-      amt?.issuer === RLUSD_ISSUER &&
+      amt?.issuer === rlusdIssuerAddress() &&
       Number(amt?.value) === Number(PRICE);
   }
   return {
@@ -224,7 +222,7 @@ export async function getSellerState() {
   const address = sellerAddress();
   const [xrp, rlusd] = await Promise.all([
     getXrpBalance(address),
-    getIouBalance(address).catch(() => 0),
+    rlusdBalance(address).catch(() => 0),
   ]);
   return {
     address,

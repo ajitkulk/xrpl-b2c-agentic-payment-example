@@ -9,7 +9,7 @@
 // The agent process never sends a payment the wallet skill would refuse to sign.
 import { dropsToXrp } from "xrpl";
 import { MAX_SPEND_DROPS, MAX_SPEND_XRP } from "./config.js";
-import { fundOrLoadWallet, ensureRlusdTrustLine } from "./xrpl.js";
+import { fundOrLoadWallet } from "./xrpl.js";
 import { getState, saveState } from "./state.js";
 
 let _wallet;
@@ -32,11 +32,6 @@ export const spendPolicy = {
   network: "testnet",
   maxPerTxXrp: MAX_SPEND_XRP,
 };
-
-/** Make sure the agent can hold/spend RLUSD (sets a trust line if needed). */
-export async function enableRlusd() {
-  return ensureRlusdTrustLine(getWallet());
-}
 
 /**
  * Enforce the auto-sign scope against a prepared transaction.

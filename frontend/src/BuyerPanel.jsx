@@ -104,6 +104,15 @@ export default function BuyerPanel({ buyer, onDone }) {
         </div>
       </div>
 
+      {asset === "RLUSD" && buyer && buyer.balances.rlusd <= 0 && (
+        <div className="hint">
+          ⚠️ The agent holds no testnet RLUSD (the faucet only funds XRP). Fund{" "}
+          <span className="mono">{buyer.address}</span> with test RLUSD via{" "}
+          <a href="https://tryrlusd.com" target="_blank" rel="noreferrer">tryrlusd.com</a> or{" "}
+          <a href="https://test.bithomp.com/faucet" target="_blank" rel="noreferrer">bithomp</a>, then retry — or just pay in XRP.
+        </div>
+      )}
+
       {steps.length > 0 && (
         <div className="timeline">
           {steps.slice(0, visible).map((s) => {
@@ -147,6 +156,14 @@ export default function BuyerPanel({ buyer, onDone }) {
         <div className="answer error">
           <div className="answer-label">Failed</div>
           <div className="answer-text">{result.error}</div>
+          {result.needsFunding && (
+            <div className="answer-links">
+              Fund the agent:{" "}
+              <a href="https://tryrlusd.com" target="_blank" rel="noreferrer">tryrlusd.com</a>
+              {" · "}
+              <a href="https://test.bithomp.com/faucet" target="_blank" rel="noreferrer">bithomp faucet</a>
+            </div>
+          )}
         </div>
       )}
     </section>

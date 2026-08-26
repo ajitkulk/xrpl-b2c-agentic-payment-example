@@ -3,10 +3,11 @@
 //
 // The whole x402 handshake happens here over real HTTP against the seller; each step is
 // recorded so the UI can illustrate what the agent did behind the scenes.
-import { SELLER_BASE_URL, FACILITATOR_URL, MAX_SPEND_XRP } from "./config.js";
+import { SELLER_BASE_URL, FACILITATOR_URL, MAX_SPEND_XRP, PRICE } from "./config.js";
 import { HEADER_REQUIRED, HEADER_SIGNATURE, HEADER_RESPONSE, encodeHeader, decodeHeader } from "./x402.js";
 import { getWallet, enableRlusd } from "./wallet-skill.js";
 import { preparePayment } from "./payment-skill.js";
+import { getIouBalance } from "./xrpl.js";
 
 /** Pull a city out of a free-form prompt like "what's the weather in Tokyo?". */
 export function parseCity(prompt) {
@@ -51,6 +52,24 @@ export async function runWeatherRequest({ prompt, city: cityArg, asset = "XRP" }
       add("wallet", "RLUSD trust line", t.alreadySet ? "Already trusts RLUSD issuer" : "Set trust line to RLUSD issuer");
     } catch (err) {
       add("wallet", "RLUSD trust line failed", String(err.message || err), "error");
+    }
+
+    // The faucet funds XRP, not RLUSD. Fail fast with a clear, actionable message
+    // instead of building a payment that dies on-ledger with tecPATH_DRY.
+    const rlusd = await getIouBalance(wallet.address).catch(() => 0);
+    if (rlusd < Number(PRICE)) {
+      add(
+        "wallet",
+        "Insufficient RLUSD balance",
+        `Agent holds ${rlusd} RLUSD (needs ${PRICE}). Fund ${wallet.address} with testnet RLUSD from a faucet (tryrlusd.com or test.bithomp.com), then retry. XRP works with no funding.`,
+        "error",
+      );
+      return {
+        ok: false,
+        error: `Agent wallet holds no testnet RLUSD. Fund ${wallet.address} from an RLUSD faucet, then retry (or pay in XRP).`,
+        needsFunding: { asset: "RLUSD", address: wallet.address, issuer: undefined },
+        steps,
+      };
     }
   }
 

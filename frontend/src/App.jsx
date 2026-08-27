@@ -31,7 +31,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <span className="dot" />
-          B2B Agentic Treasury — Weather-as-a-Service
+          B2C Agentic Payment — Weather-as-a-Service
         </div>
         <div className="meta">
           {info && (
